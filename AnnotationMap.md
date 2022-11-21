@@ -145,4 +145,4 @@ object AnnotationMap {
 ## Conclusion:
 That's it, we have made our utility typeclass AnnotationMap that can be required as a context bound `[T : AnnotationMap]` or as a given with `(using M: AnnotationMap[T])`.
 
-Now not only can we access a type's annotations at runtime without hassle in client code, but we don't even have to make all of our functions inline, because the typeclass is synthesised the first time it is required, just like `ClassTag`, `Mirro` or the `=:=`/`<:<` evidence typeclasses in the standard library. Try it out yourself :) 
+Now not only can we access a type's annotations at runtime without hassle in client code, but we don't even have to make all of our functions inline, because the typeclass is synthesised the first time it is required, just like `ClassTag`, `Mirror` or the `=:=`/`<:<` evidence typeclasses in the standard library. Try it out yourself :) 
