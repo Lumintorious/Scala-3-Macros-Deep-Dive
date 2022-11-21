@@ -52,9 +52,9 @@ object AnnotationMapMacros :
   def annotationsOfMacro[T : Type](using quotes: Quotes): Expr[Map[Class[?], ?]] = {
     import quotes.reflect.*
     
-    val repr = TypeRepr.of[T]
-    val symbol = repr.typeSymbol
-    val annotations = symbol.annotations
+    val repr: TypeRepr[T] = TypeRepr.of[T]
+    val symbol: Symbol = repr.typeSymbol
+    val annotations: List[Term] = symbol.annotations
 
     val tupleExprsInList: List[Expr[(Class[?], Any)]] = annotations
       .filter(_.tpe <:< TypeRepr.of[StaticAnnotation])
@@ -86,17 +86,17 @@ object AnnotationMapMacros :
 
     // Obtain the compile-time type representation of our type T
     // This can tell us whether the type is an alias, a refinement, a union, a intersection etc.
-    val repr = TypeRepr.of[T]
+    val repr: TypeRepr[T] = TypeRepr.of[T]
 
     // Get the type symbol of our type representation.
     // This finds the declaration of the type T, it holds information about it's
     // fields, methods, name, parents and, most importantly, annotations
-    val symbol = repr.typeSymbol
+    val symbol: Symbol = repr.typeSymbol
 
     // This allows us to get the annotations of this type as Terms
     // Terms are representations of expressions (anything that has a result: literals, variables, if blocks etc)
     // In this particular case, all of our terms will be constructor calls
-    val annotations = symbol.annotations
+    val annotations: List[Term] = symbol.annotations
 
     val tupleExprsInList: List[Expr[(Class[?], Any)]] = annotations
       .filter(_.tpe <:< TypeRepr.of[StaticAnnotation]) // Make sure all annotations' types extend StaticAnnotation
