@@ -67,7 +67,7 @@ object AnnotationMapMacros {
         }
       }
 
-    val tuplesInList: Expr[List[(Clas[?], Any)] =
+    val tuplesInList: Expr[List[(Class[?], Any)] =
       Expr.ofList(tupleExprsInList)
       
     '{ ${tuplesInList}.toMap }
@@ -80,11 +80,14 @@ Here is a commented version of our macro, explaining each step:
 import scala.quoted.{ Quotes, Type, Expr }
 
 object AnnotationMapMacros {
-
+  // This is our entry function, this is what is callable from the client code
   inline def annotationsOf[T]: Map[Class[?], ?] =
     ${ annotationsOfMacro[T] }
 
+  // The macro implementation uses the Type typeclass for T and the Quotes context parameter, which
+  // contains information about the place of macro injection and all of our compliation unit, really
   def annotationsOfMacro[T : Type](using quotes: Quotes): Expr[Map[Class[?], ?]] = {
+    // The Quotes has a reflect module that implements abstract types to help us integrate with the program's Abstract Syntax Tree
     import quotes.reflect.*
 
     // Obtain the compile-time type representation of our type T
@@ -115,7 +118,7 @@ object AnnotationMapMacros {
       }
 
     // Turn our list of expressions into an expression of the list
-    val tuplesInList: Expr[List[(Clas[?], Any)] =
+    val tuplesInList: Expr[List[(Class[?], Any)] =
       Expr.ofList(tupleExprsInList)
 
     // The transition to Map will be done at runtime (everything inside a '{ ... } happens at runtime
