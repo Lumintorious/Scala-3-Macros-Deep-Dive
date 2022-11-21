@@ -26,8 +26,31 @@ def summaryOf[T](obj: T)(using M: AnnotationMap[T]): String =
   println(summaryOf(List(1, 2, 3)) // Ordinary Object: List(1, 2, 3)
 ```
 
+The annotation `speciesName` is present on `Cat` and `Dog` with their specified scientific names, using a generic function requiring the typeclass `AnnotationMap[T]` we can find out if the type parameter `T` has the annotations we require
+
+## Implementation
+
 ```scala
 import scala.quoted.{ Quotes, Type, Expr }
 
-inline def 
+inline def annotationsOf[T]: Map[Class[?], ?] =
+  ${ annotationsOfMacro[T] }
+
+def annotationsOfMacro[T : Type](using quotes: Quotes): Expr[Map[Class[?], ?]] = {
+  import quotes.reflect.*
+
+  val repr = TypeRepr.of[T]
+  val symbol = repr.typeSymbol
+  val annotations = symbol.annotations
+  val fields = symbol.fieldMembers
+
+  val tuples = annotations.filter(_.tpe <:< TypeRepr.of[StaticAnnotation]).map { ann =>
+    '{
+      val annotation = ${ann.asExpr}
+      annotation.getClass() -> annotation
+    }
+  }
+
+  '{ ${Expr.ofList(tuples)}.toMap }
+}
 ```
