@@ -30,6 +30,15 @@ The annotation `speciesName` is present on `Cat` and `Dog` with their specified 
 
 ## Implementation
 
+# In a file `AnnotationMap.scala`:
+```scala
+import scala.reflect.{ ClassTag, classTag }
+
+final class AnnotationMap[T](rawMap: Map[Class[?], ?]):
+  inline def get[T : ClassTag]: Option[T] =
+    rawMap.get(classTag[T].runtimeClass)
+```
+
 ```scala
 import scala.quoted.{ Quotes, Type, Expr }
 
@@ -39,18 +48,39 @@ inline def annotationsOf[T]: Map[Class[?], ?] =
 def annotationsOfMacro[T : Type](using quotes: Quotes): Expr[Map[Class[?], ?]] = {
   import quotes.reflect.*
 
+  // Obtain the compile-time type representation of our type T
+  // This can tell us whether the type is an alias, a refinement, a union, a intersection etc.
   val repr = TypeRepr.of[T]
+
+  // Get the type symbol of our type representation.
+  // This finds the declaration of the type T, it holds information about it's
+  // fields, methods, name, parents and, most importantly, annotations
   val symbol = repr.typeSymbol
+  
+  // This allows us to get the annotations of this type as Terms
+  // Terms are representations of expressions (anything that has a result: literals, variables, if blocks etc)
+  // In this particular case, all of our terms will be constructor calls
   val annotations = symbol.annotations
-  val fields = symbol.fieldMembers
 
-  val tuples = annotations.filter(_.tpe <:< TypeRepr.of[StaticAnnotation]).map { ann =>
-    '{
-      val annotation = ${ann.asExpr}
-      annotation.getClass() -> annotation
+  val tupleExprsInList: List[Expr[(Class[?], Any)]] = annotations
+    .filter(_.tpe <:< TypeRepr.of[StaticAnnotation]) // Make sure all annotations' types extend StaticAnnotation
+    .map { annTerm =>
+      // Build an expression, a block that will be injected into whenever we use our macro
+      '{
+        // When in a '{ ... } block, you have to use ${ ... }
+        // To bring your values down from the macro-building scope to the injected code scope
+        val annotation = ${annTerm.asExpr}
+        
+        annotation.getClass() -> annotation
+      }
     }
-  }
+    
+  // Turn our list of expressions into an expression of the list
+  val tuplesInList: Expr[List[(Clas[?], Any)] =
+    Expr.ofList(tupleExprsInList)
 
-  '{ ${Expr.ofList(tuples)}.toMap }
+  // The transition to Map will be done at runtime (everything inside a '{ ... } happens at runtime
+  // Everything in a macro method or a ${ ... } happens at compiletime
+  '{ ${tuplesInList}.toMap }
 }
 ```
