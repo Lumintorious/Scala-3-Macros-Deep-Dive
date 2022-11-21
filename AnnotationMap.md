@@ -1,7 +1,8 @@
 # Annotation map example using Scala3 Macros
 
 ## Intention
-We want to design a typeclass that is synthesized automatically at compile-time and gives us runtime access to a class' annotations.
+We want to design a typeclass that is synthesized automatically at compile-time and gives us runtime access to a class' annotations.  
+Why? Because it seemed like a nice use case for macros and because there are dozens of questions out there on how to get a type's annotation easily in Scala
 
 ### Example of desired functionality:
 ```scala
