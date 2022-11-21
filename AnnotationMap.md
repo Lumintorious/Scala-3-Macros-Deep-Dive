@@ -40,6 +40,39 @@ final class AnnotationMap[T](rawMap: Map[Class[?], ?]):
 ```
 
 ### In a file `AnnotationMapMacros.scala`:
+Here is our short macro, for explanations, scroll down:
+```scala
+import scala.quoted.{ Quotes, Type, Expr }
+
+object AnnotationMapMacros :
+
+  inline def annotationsOf[T]: Map[Class[?], ?] =
+    ${ annotationsOfMacro[T] }
+
+  def annotationsOfMacro[T : Type](using quotes: Quotes): Expr[Map[Class[?], ?]] = {
+    import quotes.reflect.*
+    
+    val repr = TypeRepr.of[T]
+    val symbol = repr.typeSymbol
+    val annotations = symbol.annotations
+
+    val tupleExprsInList: List[Expr[(Class[?], Any)]] = annotations
+      .filter(_.tpe <:< TypeRepr.of[StaticAnnotation])
+      .map { annTerm =>
+        '{
+          val annotation = ${annTerm.asExpr}
+          annotation.getClass() -> annotation
+        }
+      }
+
+    val tuplesInList: Expr[List[(Clas[?], Any)] =
+      Expr.ofList(tupleExprsInList)
+      
+    '{ ${tuplesInList}.toMap }
+  }
+```
+
+Here is a commented version of our macro, explaining each step:
 ```scala
 import scala.quoted.{ Quotes, Type, Expr }
 
