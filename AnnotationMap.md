@@ -3,7 +3,7 @@
 ## Intention
 We want to design a typeclass that is synthesized automatically at compile-time and gives us runtime access to a class' annotations.  
 Why? Because it seemed like a nice use case for macros and because there are dozens of questions out there on how to get a type's annotation easily in Scala.  
-Also, considering the new keyword `derives` is very useful but lacks the ability to take parameters, annotations are the perfect companion for derivation too, providing parametrizations by-class.
+Also, considering the new keyword `derives` is very useful but lacks the ability to take parameters, annotations are the perfect companion for derivation, providing parametrizations by-class.
 
 ### Example of desired functionality:
 ```scala
