@@ -39,7 +39,8 @@ import scala.reflect.{ ClassTag, classTag }
 
 final class AnnotationMap[T](rawMap: Map[Class[?], ?]) {
   inline def get[T : ClassTag]: Option[T] =
-    rawMap.get(classTag[T].runtimeClass)
+    // We will only insert matching key-value pairs so casting is ok
+    rawMap.get(classTag[T].runtimeClass).asInstanceOf[Option[T]]
 }
 ```
 
@@ -134,6 +135,7 @@ object AnnotationMapMacros {
 And now, to provide our typeclass, we go back to `AnnotationMap.scala`
 ```scala
 object AnnotationMap {
+  // This given must be inline to make sure macros can reach the real type T, not just an anonymous one
   inline given synthesizedAnnotationMap[T]: AnnotationMap[T] =
     val rawMap = AnnotationMapMacros.annotationsOf[T]
     AnnotationMap[T](rawMap)
