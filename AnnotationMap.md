@@ -14,16 +14,18 @@ final case class Cat(name: String, age: Int)
 @speciesName("Canis Lupus Familiaris")
 final case class Dog(name: String, age: Int)
 
-def summaryOf[T](obj: T)(using M: AnnotationMap[T]): String =
+def summaryOf[T](obj: T)(using M: AnnotationMap[T]): String = {
   val annotationOpt: Option[speciesName] = M.get[speciesName]
   val speciesOfT: String = speciesAnnotation.map(_.name).getOrElse("Ordinary Object")
 
   s"${speciesOfT}: ${obj}"
+}
   
-@main def run =
+@main def run = {
   println(summaryOf(Cat("Tom", 7)) // Felis Silvestris Catus: Cat(Tom, 7)
   println(summaryOf(Dog("Spike", 11)) // Canis Lupus Familiaris: Dog(Spike, 1)
   println(summaryOf(List(1, 2, 3)) // Ordinary Object: List(1, 2, 3)
+}
 ```
 
 The annotation `speciesName` is present on `Cat` and `Dog` with their specified scientific names, using a generic function requiring the typeclass `AnnotationMap[T]` we can find out if the type parameter `T` has the annotations we require
@@ -34,9 +36,10 @@ The annotation `speciesName` is present on `Cat` and `Dog` with their specified 
 ```scala
 import scala.reflect.{ ClassTag, classTag }
 
-final class AnnotationMap[T](rawMap: Map[Class[?], ?]):
+final class AnnotationMap[T](rawMap: Map[Class[?], ?]) {
   inline def get[T : ClassTag]: Option[T] =
     rawMap.get(classTag[T].runtimeClass)
+}
 ```
 
 ### In a file `AnnotationMapMacros.scala`:
@@ -44,8 +47,7 @@ Here is our short macro, for explanations, scroll down:
 ```scala
 import scala.quoted.{ Quotes, Type, Expr }
 
-object AnnotationMapMacros :
-
+object AnnotationMapMacros {
   inline def annotationsOf[T]: Map[Class[?], ?] =
     ${ annotationsOfMacro[T] }
 
@@ -70,13 +72,14 @@ object AnnotationMapMacros :
       
     '{ ${tuplesInList}.toMap }
   }
+}
 ```
 
 Here is a commented version of our macro, explaining each step:
 ```scala
 import scala.quoted.{ Quotes, Type, Expr }
 
-object AnnotationMapMacros :
+object AnnotationMapMacros {
 
   inline def annotationsOf[T]: Map[Class[?], ?] =
     ${ annotationsOfMacro[T] }
@@ -119,14 +122,21 @@ object AnnotationMapMacros :
     // Everything in a macro method or a ${ ... } happens at compiletime
     '{ ${tuplesInList}.toMap }
   }
+}
 ```
 
 **Important** Macro implementations should be in seperate files from where they are called
 
 And now, to provide our typeclass, we go back to `AnnotationMap.scala`
 ```scala
-object AnnotationMap:
+object AnnotationMap {
   inline given synthesizedAnnotationMap[T]: AnnotationMap[T] =
     val rawMap = AnnotationMapMacros.annotationsOf[T]
     AnnotationMap[T](rawMap)
+}
 ```
+
+## Conclusion:
+That's it, we have made our utility typeclass AnnotationMap that can be required as a context bound `[T : AnnotationMap]` or as a given with `(using M: AnnotationMap[T])`.
+
+Now not only can we access a type's annotations at runtime without hassle in client code, but we don't even have to make all of our functions inline, because the typeclass is synthesised the first time it is required, just like `ClassTag`, `Mirro` or the `=:=`/`<:<` evidence typeclasses in the standard library. Try it out yourself :) 
