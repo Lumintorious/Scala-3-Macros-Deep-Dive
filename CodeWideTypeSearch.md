@@ -66,10 +66,10 @@ Here is how the macro code would look like, for explanations, scroll down:
 final class exposed extends StaticAnnotation
 
 object PackageSearch {
-  transparent inline def findByType[T](inline path: String): List[T] =
-    ${ findByTypeMacro[T]('path) }
+  transparent inline def searchByType[T](inline path: String): List[T] =
+    ${ searchByTypeMacro[T]('path) }
 
-  def findByTypeMacro[T : Type](pathExpr: Expr[String])(using q: Quotes): Expr[List[T]] =
+  def searchByTypeMacro[T : Type](pathExpr: Expr[String])(using q: Quotes): Expr[List[T]] =
     import q.reflect.*
 
     val packageName = pathExpr.value match {
@@ -130,11 +130,11 @@ final class exposed extends StaticAnnotation
 
 object PackageSearch {
   // the parameter path must be inline so it's value is visible at compiletime
-  transparent inline def findByType[T](inline path: String): List[T] =
+  transparent inline def searchByType[T](inline path: String): List[T] =
     // When passing an inline value to a macro, use '{...} to turn it into an Expr
-    ${ findByTypeMacro[T]('{ path }) }
+    ${ searchByTypeMacro[T]('{ path }) }
 
-  def findByTypeMacro[T : Type](pathExpr: Expr[String])(using q: Quotes): Expr[List[T]] =
+  def searchByTypeMacro[T : Type](pathExpr: Expr[String])(using q: Quotes): Expr[List[T]] =
     import q.reflect.*
 
     // Get package name from the string parameter
@@ -225,4 +225,16 @@ I understand some of the distinctions between Tree, ValDef, Term, Expr, Symbol, 
 - **Terms** are the Quotes-specific equivalent of Exprs, but they do not take type parameters (yet they know their type parameters at compiletime), they are a type of Tree
 - **Symbols** are the visible declarations of packages, classes, methods, variables, they are what you would see if you used `myVar.` and tried tab-completion in an IDE
 - **ValDefs** are a type of Tree that represent `val x = 2`-like statements, lazy vals are also here
-- **Ref** is a type of Term that references symbols, so if you have hold of a Symbol but you need to return it as a value from your macro, try `Ref(symbol)
+- **Ref** is a type of Term that references symbols, so if you have hold of a Symbol but you need to return it as a value from your macro, try `Ref(symbol)`
+
+### Conclusion
+Now you have the ability to aggregate a list of any exposed static object/val in your code base, now you can define new endpoints/pages/articles without having to visit the Main class
+
+### IMPORTANT
+There is something you should know about macros, and Scala compiled code files in general: they are cached. Whenever something is compiled, it is cached, and the cache is only invalidated if you do a `clean` in SBT **OR** if the source file **OR** a dependency of the source file changes, so if you have a file with `trait Animal` and a file with `class Dog extends Animal`, BOTH of those files' caches will be invalidated if you edit `Animal.scala` BUT only `Dog` will be invalidated if you edit `Dog.scala`, because Animal does not know if it.
+
+The issue is this: the compiler does not recognize packages/classes/objects found in a **macro** as dependencies, so in our example above, editing the file `EmployeeOverviewPage.scala` will **NOT** invalidate the `MainFrontend.scala` cache. The reference will still be valid as long as it exists **but** if you delete the `EmployeeOverviewPage.scala` or add a new `EmployeeSomethingPage.scala` file while `FrontendMain.scala` is cached, your compiled code will be wrong and fail either at compiletime or runtime depending on the change.
+
+The only way I've been able to go around this issue is by defining a task in SBT that on every compile, it invalidates the cache of a couple of key files (like `FrontendMain.scala` or if you had a `MainServer.scala` where you call `PackageSearch.searchByType[...]("...")`. That means that those files will be compiled every single time you edit any other scala file in your code base. This is fine if you limit the aggregations to only a handful of key controller files.
+
+If you want to take a look how I went around the caching issue in SBT, I will post another file here on the repo and link it here shortly
