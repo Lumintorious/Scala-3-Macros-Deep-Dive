@@ -44,8 +44,8 @@ trait FrontendPage {
   
   println(allPages)
 // ==> List(
-//       myProject.frontend.department.employee.EmployeeOverviewPage,
-//       myProject.frontend.department.employee.EmployeeDetailsPage,
+//       myProject.frontend.employee.overview.EmployeeOverviewPage,
+//       myProject.frontend.employee.details.EmployeeDetailsPage,
 //       myProject.frontend.department.overview.DepartmentOverviewPage,
 // )
 
