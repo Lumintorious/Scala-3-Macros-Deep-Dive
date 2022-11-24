@@ -41,5 +41,20 @@ trait FrontendPage {
 ```scala
 @main def run = {
   val allPages: List[FrontendPage] = PackageSearch.searchByType[FrontendPage]("myProject.frontend")
+  
+  println(allPages)
+// ==> List(
+//       myProject.frontend.department.employee.EmployeeOverviewPage,
+//       myProject.frontend.department.employee.EmployeeDetailsPage,
+//       myProject.frontend.department.overview.DepartmentOverviewPage,
+// )
+
+  val allPagesAsComponents = allPages.map(_.render)
+  println(allPagesAsComponents)
+// ==> List(
+//       <table>...<table/>,
+//       <form class="...">...<form/>
+//       <table>...<table/>
+// )
 }
 ```
