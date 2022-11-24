@@ -82,6 +82,9 @@ object PackageSearch {
       valDef.symbol.hasAnnotation(TypeRepr.of[exposed].typeSymbol)
 
     val symbol = Symbol.requiredPackage(packageName)
+    if(symbol == Symbol.noSymbol) {
+      report.errorAndAbort(s"Package by the name of ${packageName} could not be found")
+    }
 
     val exprs = searchSymbolForDeclaration(symbol, isEligible)
       .map { valDef =>
@@ -121,3 +124,97 @@ object PackageSearch {
 ```
 
 Here is a commented version of our macro, explaining each step:
+```scala
+// A marker annotation so we can have some control over what gets found
+final class exposed extends StaticAnnotation
+
+object PackageSearch {
+  // the parameter path must be inline so it's value is visible at compiletime
+  transparent inline def findByType[T](inline path: String): List[T] =
+    // When passing an inline value to a macro, use '{...} to turn it into an Expr
+    ${ findByTypeMacro[T]('{ path }) }
+
+  def findByTypeMacro[T : Type](pathExpr: Expr[String])(using q: Quotes): Expr[List[T]] =
+    import q.reflect.*
+
+    // Get package name from the string parameter
+    // Expressions which represent literals ("hello", 12, true) can be seen by macros
+    // But expressions coming from parameters or user input cannot be seen
+    // pathExpr.value will return Some(String) if the parameter is a string literal, otherwise None
+    val packageName = pathExpr.value match {
+      case Some(str) => str
+      // This is how you report errors and stop compilation in macros
+      // Nothing can be compiled without your explicit blessing
+      case None => report.errorAndAbort("Package name is not visible at compiletime")
+    }
+    
+    // Predicate to filter out values
+    // A ValDef is the Definition type of when you do `val x = 2`
+    // Where x is the name, Int is the tpt (Type Tree) and 2 is the rhs (Right-hand side)
+    // Singleton objects are also ValDefs, but they have their own singleton type `object App extends Main {...}`
+    def isEligible(valDef: ValDef): Boolean =
+      valDef.tpt.tpe <:< TypeRepr.of[T] &&
+      valDef.symbol.hasAnnotation(TypeRepr.of[exposed].typeSymbol)
+
+    // We can use this neat method from the Symbol package to find the symbol of the 
+    val symbol = Symbol.requiredPackage(packageName)
+    // It will return Symbol.noSymbol if the package does not exist, we must log and abort if so
+    if(symbol == Symbol.noSymbol) {
+      report.errorAndAbort(s"Package by the name of ${packageName} could not be found")
+    }
+
+    // We use our utility method below to find ValDefs that match the predicate recursively
+    val exprs = searchSymbolForDeclaration(symbol, isEligible)
+      .map { valDef =>
+        // Ref is a type of Term,
+        // To reference our value definition as a term, we reference it's symbol
+        // If valDef == `val x = 2`, the definition, then Ref(valDef.symbol) == `x`, the variable
+        Ref(valDef.symbol)
+      }
+      // Make sure to not return the same thing twice if referenced in multiple places
+      .distinctBy(_.show)
+      .to(List)
+      // Turn our terms into Expr[T]s that can be injected into code
+      .map(_.asExprOf[T])
+
+    // Turn our list of expressions in an expression of a list
+    // This can be injected into the code and the result will be `List(..., ..., ...)`, all values found
+    Expr.ofList(exprs)
+
+  // Utility recursive method, could probably be tail recursive but eh
+  // Notice that the using clause comes before the actual parameter list
+  // This is so we can reference the types on q.reflect in the signature
+  def searchSymbolForDeclaration(using q: Quotes)(symbol: q.reflect.Symbol, test: q.reflect.ValDef => Boolean): Seq[q.reflect.ValDef] =
+    import q.reflect.*
+    
+    try {
+      // Get the declarations inside our symbol (that could be anything at this point)
+      // And check each of them with the collect method on List
+      symbol.declarations.collect {
+        case obj if obj.fullName.contains("#") =>
+          // Some synthetic objects to be disregarded, can't explain it, it's magic
+          Seq.empty
+        case pkg if pkg.isPackageDef =>
+          // If the child symbol is a package, recurse over it's definitions
+          searchSymbolForDeclaration(pkg, test)
+        case obj if obj.isValDef &&
+          symbol.isValDef &&
+          !symbol.isPackageDef &&
+          obj.tree.asInstanceOf[ValDef].tpt.tpe =:= symbol.tree.asInstanceOf[ValDef].tpt.tpe =>
+            // If the child symbol is the same as the parent symbol, stop, we don't want stack overflows
+            Seq.empty
+        case obj if obj.isValDef && test(obj.tree.asInstanceOf[ValDef]) =>
+          // BASE CASE, if our symbol is a ValDef and it satisfies the test predicate, return it's tree
+          // as a ValDef
+          Seq(obj.tree.asInstanceOf[ValDef])
+        case obj if obj.isValDef =>
+          // If our symbol is a ValDef of another kind, recurse over it's definitions
+          // This means our macro will look inside objects inside objects inside vals inside objects etc...
+          searchSymbolForDeclaration(obj, test)
+      }.flatten
+    } catch e => {
+      // The scala compiler throws some really unhelpful and unreadable exceptions sometimes, I suggest a try catch
+      Seq.empty
+    }
+}
+```
