@@ -58,3 +58,58 @@ trait FrontendPage {
 // )
 }
 ```
+
+### Implementation
+Here is how the macro code would look like, for explanations, scroll down:
+##### PackageSearch:
+```scala
+object PackageSearch {
+  transparent inline def findByType[T](inline path: String): List[T] =
+    ${ findByTypeMacro[T]('path) }
+
+  def findByTypeMacro[T : Type](pathExpr: Expr[String])(using q: Quotes): Expr[List[T]] =
+    import q.reflect.*
+
+    val packageName = pathExpr.value match {
+      case Some(str) => str
+      case None => report.errorAndAbort("Package name is not visible at compiletime")
+    }
+
+    val symbol = Symbol.requiredPackage(packageName)
+
+    val exprs = searchSymbolForDeclaration(symbol, valDef => valDef.tpt.tpe <:< TypeRepr.of[T])
+      .map { valDef =>
+        Ref(valDef.symbol)
+      }
+      .distinctBy(_.show)
+      .to(List)
+      .map(_.asExprOf[T])
+
+    Expr.ofList(exprs)
+
+  def searchSymbolForDeclaration(using q: Quotes)(symbol: q.reflect.Symbol, test: q.reflect.ValDef => Boolean): Seq[q.reflect.ValDef] =
+    import q.reflect.*
+    
+    try {
+      symbol.declarations.collect {
+        case obj if obj.fullName.contains("#") =>
+          Seq.empty
+        case pkg if pkg.isPackageDef =>
+          searchSymbolForDeclaration(pkg, test)
+        case obj if obj.isValDef &&
+          symbol.isValDef &&
+          !symbol.isPackageDef &&
+          obj.tree.asInstanceOf[ValDef].tpt.tpe =:= symbol.tree.asInstanceOf[ValDef].tpt.tpe =>
+            Seq.empty
+        case obj if obj.isValDef && test(obj.tree.asInstanceOf[ValDef]) =>
+          Seq(obj.tree.asInstanceOf[ValDef])
+        case obj if obj.isValDef =>
+          searchSymbolForDeclaration(obj, test)
+        case _ =>
+          Seq.empty
+      }.flatten
+    } catch e => {
+      Seq.empty
+    }
+}
+```
