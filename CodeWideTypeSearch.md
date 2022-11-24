@@ -63,6 +63,8 @@ trait FrontendPage {
 Here is how the macro code would look like, for explanations, scroll down:
 ##### PackageSearch:
 ```scala
+final class exposed extends StaticAnnotation
+
 object PackageSearch {
   transparent inline def findByType[T](inline path: String): List[T] =
     ${ findByTypeMacro[T]('path) }
@@ -74,10 +76,14 @@ object PackageSearch {
       case Some(str) => str
       case None => report.errorAndAbort("Package name is not visible at compiletime")
     }
+    
+    def isEligible(valDef: ValDef): Boolean =
+      valDef.tpt.tpe <:< TypeRepr.of[T] &&
+      valDef.symbol.hasAnnotation(TypeRepr.of[exposed].typeSymbol)
 
     val symbol = Symbol.requiredPackage(packageName)
 
-    val exprs = searchSymbolForDeclaration(symbol, valDef => valDef.tpt.tpe <:< TypeRepr.of[T])
+    val exprs = searchSymbolForDeclaration(symbol, isEligible)
       .map { valDef =>
         Ref(valDef.symbol)
       }
@@ -113,3 +119,5 @@ object PackageSearch {
     }
 }
 ```
+
+Here is a commented version of our macro, explaining each step:
