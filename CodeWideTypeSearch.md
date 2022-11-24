@@ -220,9 +220,9 @@ object PackageSearch {
 ```
 
 I understand some of the distinctions between Tree, ValDef, Term, Expr, Symbol, Ref are foggy after reading this, they were for me too, hopefully this helps:
-- Tree is the abstract base type of language entities
-- Exprs are a Quotes-agnostic datatype that can be created with '{ some code } and injected using ${ ... }, they represent anything that can be returned from a method
-- Terms are the Quotes-specific equivalent of Exprs, but they do not take type parameters (yet they know their type parameters at compiletime), they are a type of Tree
-- Symbols are the visible declarations of packages, classes, methods, variables, they are what you would see if you used `myVar.` and tried tab-completion in an IDE
-- ValDefs are a type of Tree that represent `val x = 2`-like statements, lazy vals are also here
-- Ref is a type of Term that references symbols, so if you have hold of a Symbol but you need to return it as a value from your macro, try `Ref(symbol)
+- **Tree** is the abstract base type of language entities
+- **Exprs** are a Quotes-agnostic datatype that can be created with '{ some code } and injected using ${ ... }, they represent anything that can be returned from a method
+- **Terms** are the Quotes-specific equivalent of Exprs, but they do not take type parameters (yet they know their type parameters at compiletime), they are a type of Tree
+- **Symbols** are the visible declarations of packages, classes, methods, variables, they are what you would see if you used `myVar.` and tried tab-completion in an IDE
+- **ValDefs** are a type of Tree that represent `val x = 2`-like statements, lazy vals are also here
+- **Ref** is a type of Term that references symbols, so if you have hold of a Symbol but you need to return it as a value from your macro, try `Ref(symbol)
