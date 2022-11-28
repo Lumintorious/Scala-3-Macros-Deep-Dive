@@ -1,0 +1,10 @@
+# Type safe dictionaries and Matching
+
+### Intention
+We would like to implement a form of dictionary (or map) that is immutable and remembers all the types of it's initialized values.  
+There is something very similar currently in Scala 3: the **Selectable** trait with **Refinement** types, but there are a couple of issues:
+  1. The selectable trait lacks an implementation and it helps only with the access of values
+  1. When you create Selectable implementation, you have to cast your created object to a refinement
+  1. The syntax for creating key-value Selectables involves one of two ways, none of which resemble the syntax of refinement types:
+    - A list of tuples akin to `obj("key" -> value)`
+    - A dynamic object with an `applyDynamicNamed` resulting in `obj(key = value)`
